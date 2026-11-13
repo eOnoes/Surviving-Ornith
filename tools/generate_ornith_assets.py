@@ -272,6 +272,19 @@ def sounds() -> None:
         melody += np.sin(2*np.pi*frequency*local)*envelope*.22
     write_sound("taming", melody)
     t=timeline(.22); write_sound("empty", np.sin(2*np.pi*190*t)*np.exp(-t*28)*.3)
+    t=timeline(.24)
+    wood = noise_burst(.24,20,190)*.5 + np.sin(2*np.pi*125*t)*np.exp(-t*25)*.25
+    write_sound("wood_hit", wood)
+    t=timeline(.28)
+    stone = noise_burst(.28,18,1450)*.38 + np.sin(2*np.pi*2350*t)*np.exp(-t*24)*.16
+    write_sound("stone_hit", stone)
+    t=timeline(.3)
+    animal = noise_burst(.3,14,92)*.4 + np.sin(2*np.pi*68*t)*np.exp(-t*18)*.28
+    write_sound("animal_hit", animal)
+    t=timeline(.3)
+    envelope = np.sin(np.pi*t/.3)**1.5
+    swing = (rng.uniform(-1,1,len(t))*.3 + np.sin(2*np.pi*(240*t+500*t*t))*.15)*envelope
+    write_sound("swing", swing)
 
 
 def main() -> None:

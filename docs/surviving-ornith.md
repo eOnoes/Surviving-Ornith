@@ -10,12 +10,14 @@ Repository scope: single-player Windows vertical slice on Ornith Island
 - One compact voxel island with grass, beach, water, trees, ore, berry bushes, flowers, clouds, and animals.
 - Tree cutting with the axe and ore mining with the pickaxe; depleted objects disappear and their static colliders are removed safely.
 - A one-round, accurate, long-range rifle with a 2.4-second reload and a six-round, faster, shorter-range pistol with spread and a 1.05-second reload.
+- Grounded jumping, crouching, prone movement, and stamina-based sprinting with slower stance speeds and standing headroom checks.
+- Visible rifle/pistol recoil and axe/pickaxe swings, including misses; distinct wood, stone, animal-hit, and swing sounds complement the existing gun and reload audio.
 - Wolf, cow, and hawk models with wild movement, sex, health, taming food requirements, and follow/stay commands.
 - Tamed wolves and hawks assist against nearby hostile wolves; tamed cows follow without combat assistance.
 - Opposite-sex tamed adult pairs consume food and produce live pooled offspring; babies mature after 45 seconds and breeding has a cooldown.
 - Meat from hunting, berry foraging, eating, hunger drain, hostile-wolf damage, death, and respawning.
 - Grid-snapped walls and foundations with resource costs, placement rejection, fixed object pools, and active collision geometry.
-- First-person, third-person, and top-down play, a styled HUD, objective progression, hotbar, prompts, and original sound effects.
+- First-person, third-person, and top-down play, stance-aware third-person avatar presentation, a styled HUD with energy and stance state, objective progression, hotbar, prompts, and original sound effects.
 
 Multiplayer is **not implemented** and remains future scope.
 
@@ -34,6 +36,10 @@ The release executable is `target/release/surviving-ornith.exe`. Launch it with 
 | Input | Action |
 | --- | --- |
 | WASD | Move |
+| Space | Jump while standing on the ground |
+| Left Ctrl | Toggle crouching / standing |
+| Z | Toggle prone / standing |
+| Left Shift | Hold with movement to sprint; drains energy |
 | Right mouse | Capture cursor / enable look |
 | Left mouse | Use selected weapon or tool; place in build mode |
 | 1 / 2 / 3 / 4 | Rifle / pistol / pickaxe / axe |
@@ -46,17 +52,19 @@ The release executable is `target/release/surviving-ornith.exe`. Launch it with 
 | V | Cycle first-person, third-person, top-down |
 | Escape | Release cursor and clear held input |
 
+Sprint energy recovers when sprinting stops. Crouching and prone movement are slower; insufficient headroom prevents standing. The HUD displays stance, sprint state, and energy.
+
 ## Architecture and ownership
 
-This independent repository consumes the public `engine` facade directly from `https://github.com/eOnoes/UBE.git`. Ornith-specific rules are not embedded in UBE, and engine sources are not duplicated in this repository.
+This independent repository consumes the public `engine` facade directly from `https://github.com/eOnoes/UBE.git`, pinned to revision `8f651b3effca69d426998ec1d97240e4ba9659c9`. Ornith-specific rules are not embedded in UBE, and engine sources are not duplicated in this repository.
 
-UBE owns native input, fixed-step scheduling, player movement, collision-world rebuilding, rendering, HUD presentation, and audio output. `OrnithGame` owns rules and state through `GamePlugin`, `GameAction`, `GameFeedback`, and renderer-neutral `GameHud` contracts. Physics rebuilds occur at engine-controlled safe boundaries.
+UBE owns native input, fixed-step scheduling, player movement, collision-world rebuilding, rendering, HUD presentation, and audio output. `OrnithGame` owns rules and state through `GamePlugin`, `GameAction`, `GameFeedback`, and renderer-neutral `GameHud` contracts. Physics rebuilds occur at engine-controlled safe boundaries. Recoil, tool swings, stance-aware avatar presentation, and material/animal impact feedback remain game-owned.
 
 The scene preallocates **100 model objects**, including hidden resource, building, offspring, avatar, and view-model pools. Hidden objects are translated out of view rather than given invalid zero scale. This keeps renderer capacity fixed at startup and avoids dynamic GPU upload assumptions.
 
 ## Original assets and budget
 
-`tools/generate_ornith_assets.py` uses deterministic geometry and audio generation. The island uses 17 original textured GLB models containing 11,844 source triangles across the model set, plus 11 mono PCM WAV clips. No downloaded, hand-sculpted, or third-party game assets are used. These original assets follow the repository's MIT license.
+`tools/generate_ornith_assets.py` uses deterministic geometry and audio generation. The island uses 17 original textured GLB models containing 11,844 source triangles across the model set, plus 15 mono PCM WAV clips. No downloaded, hand-sculpted, or third-party game assets are used. These original assets follow the repository's MIT license.
 
 The startup renderer diagnostic confirmed **17 models / 17 primitives / object capacity 100** on the native DirectX 12 path.
 
@@ -69,14 +77,15 @@ Unless noted otherwise, these checks ran locally on Windows after repository sep
 | `cargo fmt --all --check` | PASS |
 | `cargo check --workspace --all-targets` | PASS |
 | `cargo clippy --workspace --all-targets -- -D warnings` | PASS |
-| `cargo test --workspace` | PASS — **10 game tests** |
+| `cargo test --workspace` | PASS — **12 game tests** |
 | `cargo build --release --workspace` | PASS |
-| `tools/ornith_smoke.py` | PASS after separation |
-| `tools/ornith_loop_smoke.py` | PASS before separation; NOT VERIFIED after separation |
+| `tools/ornith_smoke.py` | PASS after the movement upgrade |
+| `tools/ornith_movement_smoke.py` | PASS — real Space / Ctrl / Z / Shift input, eight captures, swing/recoil audio, clean exit |
+| `tools/ornith_loop_smoke.py` | PASS after the movement upgrade |
 
-The Ornith native smoke exercised startup, asset loading, HUD captures, rifle and pistol fire, reload, eating, companion command, all three cameras, build mode, named audio requests, and clean shutdown using UBE resolved from GitHub.
+The Ornith native smoke exercised startup, asset loading, HUD captures, rifle and pistol fire, reload, eating, companion command, all three cameras, build mode, named audio requests, and clean shutdown using UBE resolved from GitHub. The focused movement smoke additionally verified crouching, prone, third-person prone presentation, jumping, sprint start/stop, axe-swing feedback, and rifle recoil. Captures confirmed readable two-line controls, the energy meter, and stance labels.
 
-Before separation, the full-loop native smoke used ordinary Windows keyboard and mouse input to complete this sequence in the real release. The gameplay sources and assets were copied unchanged. Two post-separation replay attempts were interrupted by native desktop focus/capture failures, so a new full-loop pass is not claimed:
+The full-loop native smoke used Windows input to complete this sequence in the real release:
 
 1. Cut a tree and receive 6 wood.
 2. Mine ore and receive 4 stone.
@@ -84,11 +93,11 @@ Before separation, the full-loop native smoke used ordinary Windows keyboard and
 4. Mine a second obstructing ore rock.
 5. Tame a female and male cow with berries.
 6. Breed the nearby pair and receive a live calf.
-7. Request chopping, mining, building, and taming sounds and exit cleanly.
+7. Request chopping, wood-hit, mining, stone-hit, building, and taming sounds and exit cleanly.
 
-Captured images and logs are written to `artifacts/ornith-smoke/` and `artifacts/ornith-loop-smoke/`; those generated artifacts are intentionally not committed. The captures were visually inspected, and a HUD readability/weapon-framing fix was rerun and verified.
+Captured images and logs are written to `artifacts/ornith-smoke/`, `artifacts/ornith-movement-smoke/`, and `artifacts/ornith-loop-smoke/`; those generated artifacts are intentionally not committed. The current captures were visually inspected. Animal-hit feedback and motion expiration are covered by game unit tests.
 
-The native smoke recorded steady intervals near 120 FPS at 1280×720 on the RTX 4080 SUPER. This is an observation from the playtest, not a new formal benchmark. Focus-loss clearing is covered by the runtime unit test; the native input smoke explicitly verifies two real cursor captures and two Escape releases, not an operating-system foreground transition.
+Focus-loss clearing is covered by the runtime unit test; the general native input path explicitly verifies cursor capture and release, not an operating-system foreground transition.
 
 Remote CI and owner acceptance: **NOT RECORDED** in this checkpoint.
 

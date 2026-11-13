@@ -108,7 +108,10 @@ def main() -> None:
             raise AssertionError(f"Native gameplay loop did not reach: {text}")
     if diagnostics.count("Cow tamed") != 2:
         raise AssertionError("Expected two real cow-taming interactions")
-    for effect in ["effect=chopping", "effect=mining", "effect=building", "effect=taming"]:
+    for effect in [
+        "effect=chopping", "effect=wood_hit", "effect=mining", "effect=stone_hit",
+        "effect=building", "effect=taming",
+    ]:
         if effect not in diagnostics:
             raise AssertionError(f"Missing gameplay audio request: {effect}")
     stderr = stderr_path.read_text(encoding="utf-8")

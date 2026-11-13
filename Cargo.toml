@@ -17,5 +17,5 @@ name = "surviving-ornith"
 path = "src/main.rs"
 
 [dependencies]
-engine = { git = "https://github.com/eOnoes/UBE.git", package = "engine", rev = "26b5af78c3c2aee8b36a0e528c064a972bdebadc" }
+engine = { git = "https://github.com/eOnoes/UBE.git", package = "engine", rev = "8f651b3effca69d426998ec1d97240e4ba9659c9" }
 tracing-subscriber = { version = "0.3", features = ["fmt"] }

@@ -583,7 +583,7 @@ dependencies = [
 [[package]]
 name = "engine"
 version = "0.1.0"
-source = "git+https://github.com/eOnoes/UBE.git?rev=26b5af78c3c2aee8b36a0e528c064a972bdebadc#26b5af78c3c2aee8b36a0e528c064a972bdebadc"
+source = "git+https://github.com/eOnoes/UBE.git?rev=8f651b3effca69d426998ec1d97240e4ba9659c9#8f651b3effca69d426998ec1d97240e4ba9659c9"
 dependencies = [
  "engine_runtime",
 ]
@@ -591,7 +591,7 @@ dependencies = [
 [[package]]
 name = "engine_assets"
 version = "0.1.0"
-source = "git+https://github.com/eOnoes/UBE.git?rev=26b5af78c3c2aee8b36a0e528c064a972bdebadc#26b5af78c3c2aee8b36a0e528c064a972bdebadc"
+source = "git+https://github.com/eOnoes/UBE.git?rev=8f651b3effca69d426998ec1d97240e4ba9659c9#8f651b3effca69d426998ec1d97240e4ba9659c9"
 dependencies = [
  "gltf",
  "thiserror 2.0.21",
@@ -600,7 +600,7 @@ dependencies = [
 [[package]]
 name = "engine_audio"
 version = "0.1.0"
-source = "git+https://github.com/eOnoes/UBE.git?rev=26b5af78c3c2aee8b36a0e528c064a972bdebadc#26b5af78c3c2aee8b36a0e528c064a972bdebadc"
+source = "git+https://github.com/eOnoes/UBE.git?rev=8f651b3effca69d426998ec1d97240e4ba9659c9#8f651b3effca69d426998ec1d97240e4ba9659c9"
 dependencies = [
  "rodio",
  "thiserror 2.0.21",
@@ -609,12 +609,12 @@ dependencies = [
 [[package]]
 name = "engine_core"
 version = "0.1.0"
-source = "git+https://github.com/eOnoes/UBE.git?rev=26b5af78c3c2aee8b36a0e528c064a972bdebadc#26b5af78c3c2aee8b36a0e528c064a972bdebadc"
+source = "git+https://github.com/eOnoes/UBE.git?rev=8f651b3effca69d426998ec1d97240e4ba9659c9#8f651b3effca69d426998ec1d97240e4ba9659c9"
 
 [[package]]
 name = "engine_physics"
 version = "0.1.0"
-source = "git+https://github.com/eOnoes/UBE.git?rev=26b5af78c3c2aee8b36a0e528c064a972bdebadc#26b5af78c3c2aee8b36a0e528c064a972bdebadc"
+source = "git+https://github.com/eOnoes/UBE.git?rev=8f651b3effca69d426998ec1d97240e4ba9659c9#8f651b3effca69d426998ec1d97240e4ba9659c9"
 dependencies = [
  "engine_scene",
  "glam 0.34.3",
@@ -625,7 +625,7 @@ dependencies = [
 [[package]]
 name = "engine_platform"
 version = "0.1.0"
-source = "git+https://github.com/eOnoes/UBE.git?rev=26b5af78c3c2aee8b36a0e528c064a972bdebadc#26b5af78c3c2aee8b36a0e528c064a972bdebadc"
+source = "git+https://github.com/eOnoes/UBE.git?rev=8f651b3effca69d426998ec1d97240e4ba9659c9#8f651b3effca69d426998ec1d97240e4ba9659c9"
 dependencies = [
  "raw-window-handle",
  "thiserror 2.0.21",
@@ -636,7 +636,7 @@ dependencies = [
 [[package]]
 name = "engine_render"
 version = "0.1.0"
-source = "git+https://github.com/eOnoes/UBE.git?rev=26b5af78c3c2aee8b36a0e528c064a972bdebadc#26b5af78c3c2aee8b36a0e528c064a972bdebadc"
+source = "git+https://github.com/eOnoes/UBE.git?rev=8f651b3effca69d426998ec1d97240e4ba9659c9#8f651b3effca69d426998ec1d97240e4ba9659c9"
 dependencies = [
  "bytemuck",
  "egui",
@@ -653,7 +653,7 @@ dependencies = [
 [[package]]
 name = "engine_runtime"
 version = "0.1.0"
-source = "git+https://github.com/eOnoes/UBE.git?rev=26b5af78c3c2aee8b36a0e528c064a972bdebadc#26b5af78c3c2aee8b36a0e528c064a972bdebadc"
+source = "git+https://github.com/eOnoes/UBE.git?rev=8f651b3effca69d426998ec1d97240e4ba9659c9#8f651b3effca69d426998ec1d97240e4ba9659c9"
 dependencies = [
  "egui",
  "engine_assets",
@@ -670,7 +670,7 @@ dependencies = [
 [[package]]
 name = "engine_scene"
 version = "0.1.0"
-source = "git+https://github.com/eOnoes/UBE.git?rev=26b5af78c3c2aee8b36a0e528c064a972bdebadc#26b5af78c3c2aee8b36a0e528c064a972bdebadc"
+source = "git+https://github.com/eOnoes/UBE.git?rev=8f651b3effca69d426998ec1d97240e4ba9659c9#8f651b3effca69d426998ec1d97240e4ba9659c9"
 dependencies = [
  "glam 0.34.3",
  "serde",

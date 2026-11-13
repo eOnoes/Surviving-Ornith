@@ -23,6 +23,10 @@ cargo run --release -- --no-audio
 | Input | Action |
 | --- | --- |
 | WASD | Move |
+| Space | Jump while standing on the ground |
+| Left Ctrl | Toggle crouching / standing |
+| Z | Toggle prone / standing |
+| Left Shift | Hold with movement to sprint; uses energy |
 | Right mouse / mouse | Capture cursor and look |
 | Left mouse | Fire, harvest, or place the selected structure |
 | 1 / 2 | Rifle / pistol |
@@ -36,13 +40,15 @@ cargo run --release -- --no-audio
 | V | First-person / third-person / top-down |
 | Escape | Release cursor and clear held input |
 
+Sprinting drains energy, which recovers when sprinting stops. Crouching and prone movement are slower, and a low ceiling can prevent standing back up. The HUD shows stance, sprint state, and energy.
+
 Start with 4 meat and 4 berries. Wolves and hawks eat meat; cows eat berries. A tamed adult needs a nearby, tamed adult of the opposite sex and 2 additional food to breed. Babies mature after 45 seconds.
 
-The rifle is accurate and long-ranged but holds one round and reloads slowly. The pistol fires faster, holds six rounds, and has more spread with a shorter effective range.
+The rifle is accurate and long-ranged but holds one round and reloads slowly. The pistol fires faster, holds six rounds, and has more spread with a shorter effective range. Successful shots produce visible recoil; tools swing even on a miss. Wood, stone, animal impacts, swings, gunfire, and reloads have distinct sound feedback.
 
 ## Original assets
 
-The 17 GLB models and 11 WAV clips are deterministic procedural originals generated locally by `tools/generate_ornith_assets.py`. No downloaded game assets are used.
+The 17 GLB models and 15 WAV clips are deterministic procedural originals generated locally by `tools/generate_ornith_assets.py`. No downloaded game assets are used.
 
 ```sh
 python tools/generate_ornith_assets.py
@@ -62,6 +68,7 @@ Native Windows playtests:
 
 ```sh
 python tools/ornith_smoke.py
+python tools/ornith_movement_smoke.py
 python tools/ornith_loop_smoke.py
 ```
 

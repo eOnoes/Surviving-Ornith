@@ -5,11 +5,23 @@ use std::time::Duration;
 
 use engine::{
     BoxCollider, CameraMode, Entity, GameAction, GameFeedback, GameHud, GamePlugin, HudSlot,
-    ModelReference, PlayerSnapshot, Scene, Transform,
+    ModelReference, PlayerSnapshot, PlayerStance, Scene, Transform,
 };
 
 pub const SOUND_EFFECTS: &[&str] = &[
-    "rifle", "pistol", "reload", "mining", "chopping", "building", "taming", "eating", "hurt",
+    "rifle",
+    "pistol",
+    "reload",
+    "mining",
+    "chopping",
+    "wood_hit",
+    "stone_hit",
+    "animal_hit",
+    "swing",
+    "building",
+    "taming",
+    "eating",
+    "hurt",
     "empty",
 ];
 const HIDDEN_Y: f32 = -100.0;
@@ -225,6 +237,9 @@ pub struct OrnithGame {
     pistol_loaded: u8,
     reloading: Option<(Tool, f32)>,
     action_cooldown: f32,
+    motion_tool: Option<Tool>,
+    motion_remaining: f32,
+    motion_duration: f32,
     shot_index: u32,
     build_mode: bool,
     build_kind: BuildKind,
@@ -393,6 +408,9 @@ pub fn new_world() -> (Scene, OrnithGame) {
         pistol_loaded: 6,
         reloading: None,
         action_cooldown: 0.0,
+        motion_tool: None,
+        motion_remaining: 0.0,
+        motion_duration: 0.0,
         shot_index: 0,
         build_mode: false,
         build_kind: BuildKind::Wall,
@@ -407,6 +425,10 @@ pub fn new_world() -> (Scene, OrnithGame) {
             yaw: 0.0,
             pitch: 0.0,
             camera_mode: CameraMode::FirstPerson,
+            stance: PlayerStance::Standing,
+            sprint_energy: 100.0,
+            sprinting: false,
+            grounded: false,
         },
         built_count: 0,
     };
@@ -509,6 +531,20 @@ impl OrnithGame {
         }
     }
 
+    fn start_motion(&mut self, tool: Tool, duration: f32) {
+        self.motion_tool = Some(tool);
+        self.motion_remaining = duration;
+        self.motion_duration = duration;
+    }
+
+    fn motion_wave(&self, tool: Tool) -> f32 {
+        if self.motion_tool != Some(tool) || self.motion_duration <= 0.0 {
+            return 0.0;
+        }
+        let progress = (1.0 - self.motion_remaining / self.motion_duration).clamp(0.0, 1.0);
+        (progress * PI).sin()
+    }
+
     fn loaded_mut(&mut self, tool: Tool) -> Option<&mut u8> {
         match tool {
             Tool::Rifle => Some(&mut self.rifle_loaded),
@@ -542,6 +578,14 @@ impl OrnithGame {
         }
         *self.loaded_mut(self.selected).unwrap() -= 1;
         self.action_cooldown = spec.cooldown_seconds;
+        self.start_motion(
+            self.selected,
+            if self.selected == Tool::Rifle {
+                0.22
+            } else {
+                0.16
+            },
+        );
         let pattern = [0.0, 0.75, -0.6, 1.0, -0.9, 0.35, -0.2, 0.55];
         let offset = pattern[self.shot_index as usize % pattern.len()] * spec.spread;
         self.shot_index = self.shot_index.wrapping_add(1);
@@ -551,12 +595,18 @@ impl OrnithGame {
                 + pattern[(self.shot_index as usize + 2) % pattern.len()] * spec.spread * 0.45,
             ..player
         };
-        if let Some(index) = self.aimed_animal(spread_player, spec.range, 0.91) {
+        let hit = if let Some(index) = self.aimed_animal(spread_player, spec.range, 0.91) {
             self.damage_animal(scene, index, spec.damage);
+            true
         } else {
             self.status = format!("{} fired. No clean hit.", self.selected.name());
+            false
+        };
+        let mut feedback = Self::sound(spec.sound);
+        if hit {
+            feedback.sound_effects.push("animal_hit".into());
         }
-        Self::sound(spec.sound)
+        feedback
     }
 
     fn reload(&mut self) -> GameFeedback {
@@ -586,6 +636,7 @@ impl OrnithGame {
             Tool::Axe => NodeKind::Tree,
             Tool::Rifle | Tool::Pistol => return GameFeedback::default(),
         };
+        self.start_motion(self.selected, 0.38);
         let Some(index) = self.aimed_resource(player, 4.2, Some(expected)) else {
             self.status = format!(
                 "Aim at {} within reach.",
@@ -595,17 +646,18 @@ impl OrnithGame {
                     "a tree"
                 }
             );
-            return GameFeedback::default();
+            return Self::sound("swing");
         };
         self.action_cooldown = 0.34;
         let node = &mut self.resources[index];
         node.hits = node.hits.saturating_sub(1);
-        let sound = if expected == NodeKind::Ore {
-            "mining"
+        let (sound, impact) = if expected == NodeKind::Ore {
+            ("mining", "stone_hit")
         } else {
-            "chopping"
+            ("chopping", "wood_hit")
         };
         let mut feedback = Self::sound(sound);
+        feedback.sound_effects.push(impact.into());
         if node.hits == 0 {
             node.alive = false;
             scene.set_local_transform(node.entity, hidden_transform());
@@ -1015,41 +1067,68 @@ impl OrnithGame {
         let forward = direction(player);
         let flat_forward = [player.yaw.sin(), 0.0, -player.yaw.cos()];
         let right = [player.yaw.cos(), 0.0, player.yaw.sin()];
+        let motion = self.motion_wave(self.selected);
+        let is_weapon = weapon_spec(self.selected).is_some();
+        let motion_angle = if is_weapon { 0.2 } else { -1.0 } * motion;
+        let motion_offset = if is_weapon {
+            add(
+                scale(flat_forward, -0.14 * motion),
+                [0.0, 0.07 * motion, 0.0],
+            )
+        } else {
+            add(scale(forward, 0.12 * motion), [0.0, -0.08 * motion, 0.0])
+        };
         if player.camera_mode == CameraMode::FirstPerson {
             scene.set_local_transform(self.avatar, hidden_transform());
             if !self.build_mode {
                 let position = add(
                     add(
-                        add(player.position, scale(forward, 0.88)),
-                        scale(right, 0.34),
+                        add(
+                            add(player.position, scale(forward, 0.88)),
+                            scale(right, 0.34),
+                        ),
+                        [0.0, -0.3, 0.0],
                     ),
-                    [0.0, -0.3, 0.0],
+                    motion_offset,
                 );
                 scene.set_local_transform(
                     self.viewmodels[self.selected.slot() as usize - 1],
                     Transform::default()
                         .with_translation(position)
                         .with_rotation_y(player.yaw)
+                        .rotated_x(motion_angle)
                         .with_scale(0.45),
                 );
             }
         } else {
+            let (center_height, height_offset, avatar_scale, avatar_tilt) = match player.stance {
+                PlayerStance::Standing => (0.9, 0.0, 1.0, 0.0),
+                PlayerStance::Crouching => (0.65, 0.0, 0.72, 0.0),
+                PlayerStance::Prone => (0.35, 0.28, 1.0, PI / 2.0),
+            };
+            let avatar_position = add(player.position, [0.0, height_offset - center_height, 0.0]);
             scene.set_local_transform(
                 self.avatar,
                 Transform::default()
-                    .with_translation(add(player.position, [0.0, -0.91, 0.0]))
-                    .with_rotation_y(player.yaw + PI),
+                    .with_translation(avatar_position)
+                    .with_rotation_y(player.yaw + PI)
+                    .rotated_x(avatar_tilt)
+                    .with_scale(avatar_scale),
             );
             if !self.build_mode {
                 let position = add(
-                    add(player.position, scale(flat_forward, 0.35)),
-                    add(scale(right, 0.48), [0.0, -0.25, 0.0]),
+                    add(
+                        add(player.position, scale(flat_forward, 0.35)),
+                        add(scale(right, 0.48), [0.0, -0.25, 0.0]),
+                    ),
+                    motion_offset,
                 );
                 scene.set_local_transform(
                     self.viewmodels[self.selected.slot() as usize - 1],
                     Transform::default()
                         .with_translation(position)
                         .with_rotation_y(player.yaw)
+                        .rotated_x(motion_angle)
                         .with_scale(0.65),
                 );
             }
@@ -1197,6 +1276,13 @@ impl GamePlugin for OrnithGame {
         self.elapsed += dt;
         self.intro_seconds = (self.intro_seconds - dt).max(0.0);
         self.action_cooldown = (self.action_cooldown - dt).max(0.0);
+        if self.motion_remaining > 0.0 {
+            self.motion_remaining = (self.motion_remaining - dt).max(0.0);
+            if self.motion_remaining == 0.0 {
+                self.motion_tool = None;
+                self.motion_duration = 0.0;
+            }
+        }
         if let Some((tool, remaining)) = self.reloading {
             let remaining = remaining - dt;
             if remaining <= 0.0 {
@@ -1278,6 +1364,11 @@ impl GamePlugin for OrnithGame {
         } else {
             String::new()
         };
+        let sprint_state = if self.last_player.sprinting {
+            "  •  SPRINT"
+        } else {
+            ""
+        };
         GameHud {
             title: "SURVIVING ORNITH".into(),
             subtitle: "Ornith Island  •  UBE nerd 0.1".into(),
@@ -1294,13 +1385,16 @@ impl GamePlugin for OrnithGame {
             ),
             ammo,
             compass: format!(
-                "{direction_name}  •  X {:.0}  Z {:.0}",
-                self.last_player.position[0], self.last_player.position[2]
+                "{direction_name}  •  {}{sprint_state}  •  X {:.0}  Z {:.0}",
+                self.last_player.stance.label().to_uppercase(),
+                self.last_player.position[0],
+                self.last_player.position[2]
             ),
-            controls: "WASD move  •  RMB look  •  V view  •  E interact  •  F eat  •  C companions"
+            controls: "WASD move  •  Shift sprint  •  Space jump  •  Ctrl crouch  •  Z prone\nRMB look  •  LMB use  •  V view  •  E interact  •  F eat  •  C companions"
                 .into(),
             health: self.health,
             hunger: self.hunger,
+            energy: Some(self.last_player.sprint_energy),
             slots: [Tool::Rifle, Tool::Pistol, Tool::Pickaxe, Tool::Axe]
                 .into_iter()
                 .map(|tool| {
@@ -1384,40 +1478,35 @@ fn interpolate(left: [f32; 3], right: [f32; 3], amount: f32) -> [f32; 3] {
 mod tests {
     use super::*;
 
+    fn standing_player(position: [f32; 3]) -> PlayerSnapshot {
+        PlayerSnapshot {
+            position,
+            yaw: 0.0,
+            pitch: 0.0,
+            camera_mode: CameraMode::FirstPerson,
+            stance: PlayerStance::Standing,
+            sprint_energy: 100.0,
+            sprinting: false,
+            grounded: true,
+        }
+    }
+
     fn step(game: &mut OrnithGame, scene: &mut Scene, seconds: f32) -> GameFeedback {
         game.fixed_update(
             scene,
             Duration::from_secs_f32(seconds),
-            PlayerSnapshot {
-                position: RESPAWN,
-                yaw: 0.0,
-                pitch: 0.0,
-                camera_mode: CameraMode::FirstPerson,
-            },
+            standing_player(RESPAWN),
         )
     }
 
     fn aiming_at(target: [f32; 3]) -> PlayerSnapshot {
-        PlayerSnapshot {
-            position: add(target, [0.0, 0.91, 3.2]),
-            yaw: 0.0,
-            pitch: 0.0,
-            camera_mode: CameraMode::FirstPerson,
-        }
+        standing_player(add(target, [0.0, 0.91, 3.2]))
     }
 
     #[test]
     fn rifle_requires_slow_reload_and_pistol_has_distinct_handling() {
         let (mut scene, mut game) = new_world();
-        game.fire(
-            &mut scene,
-            PlayerSnapshot {
-                position: RESPAWN,
-                yaw: 0.0,
-                pitch: 0.0,
-                camera_mode: CameraMode::FirstPerson,
-            },
-        );
+        game.fire(&mut scene, standing_player(RESPAWN));
         assert_eq!(game.rifle_loaded, 0);
         game.reload();
         step(&mut game, &mut scene, 0.1);
@@ -1566,16 +1655,77 @@ mod tests {
     fn pistol_cannot_hit_beyond_its_range() {
         let (mut scene, mut game) = new_world();
         game.animals[0].position = [0.0, 0.0, -24.0];
-        let player = PlayerSnapshot {
-            position: RESPAWN,
-            yaw: 0.0,
-            pitch: 0.0,
-            camera_mode: CameraMode::FirstPerson,
-        };
+        let player = standing_player(RESPAWN);
         game.on_action(GameAction::SelectSlot(2), &mut scene, player);
         let health = game.animals[0].health;
         game.fire(&mut scene, player);
         assert_eq!(game.animals[0].health, health);
         assert_eq!(game.pistol_loaded, 5);
+    }
+
+    #[test]
+    fn successful_shots_recoil_expire_and_report_animal_impacts() {
+        let (mut scene, mut game) = new_world();
+        let player = aiming_at(game.animals[0].position);
+        let feedback = game.fire(&mut scene, player);
+        assert!(feedback.sound_effects.iter().any(|sound| sound == "rifle"));
+        assert!(
+            feedback
+                .sound_effects
+                .iter()
+                .any(|sound| sound == "animal_hit")
+        );
+        assert_eq!(game.motion_tool, Some(Tool::Rifle));
+        assert_eq!(game.motion_duration, 0.22);
+
+        let before = game.motion_remaining;
+        step(&mut game, &mut scene, 0.1);
+        assert!(game.motion_remaining < before);
+        assert!(game.motion_remaining > 0.0);
+        for _ in 0..3 {
+            step(&mut game, &mut scene, 0.1);
+        }
+        assert_eq!(game.motion_tool, None);
+        assert_eq!(game.motion_duration, 0.0);
+
+        game.last_player.stance = PlayerStance::Crouching;
+        game.last_player.sprint_energy = 73.0;
+        let hud = game.hud();
+        assert_eq!(hud.energy, Some(73.0));
+        assert!(hud.compass.contains("CROUCHING"));
+    }
+
+    #[test]
+    fn tools_swing_on_misses_and_hits_use_material_audio() {
+        let (mut scene, mut game) = new_world();
+        let player = standing_player(RESPAWN);
+        game.on_action(GameAction::SelectSlot(4), &mut scene, player);
+        let miss = game.on_action(GameAction::PrimaryUse, &mut scene, player);
+        assert!(miss.sound_effects.iter().any(|sound| sound == "swing"));
+        assert_eq!(game.motion_tool, Some(Tool::Axe));
+        assert_eq!(game.motion_duration, 0.38);
+        for _ in 0..4 {
+            step(&mut game, &mut scene, 0.1);
+        }
+        assert_eq!(game.motion_tool, None);
+
+        let player = aiming_at(game.resources[0].position);
+        let wood = game.on_action(GameAction::PrimaryUse, &mut scene, player);
+        assert!(wood.sound_effects.iter().any(|sound| sound == "chopping"));
+        assert!(wood.sound_effects.iter().any(|sound| sound == "wood_hit"));
+        assert_eq!(game.motion_tool, Some(Tool::Axe));
+
+        game.action_cooldown = 0.0;
+        let ore = game
+            .resources
+            .iter()
+            .position(|node| node.kind == NodeKind::Ore)
+            .unwrap();
+        let player = aiming_at(game.resources[ore].position);
+        game.on_action(GameAction::SelectSlot(3), &mut scene, player);
+        let stone = game.on_action(GameAction::PrimaryUse, &mut scene, player);
+        assert!(stone.sound_effects.iter().any(|sound| sound == "mining"));
+        assert!(stone.sound_effects.iter().any(|sound| sound == "stone_hit"));
+        assert_eq!(game.motion_tool, Some(Tool::Pickaxe));
     }
 }

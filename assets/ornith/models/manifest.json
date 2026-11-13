@@ -21,6 +21,7 @@
     "foundation": 48
   },
   "audio": [
+    "animal_hit",
     "building",
     "chopping",
     "eating",
@@ -31,6 +32,9 @@
     "pistol",
     "reload",
     "rifle",
-    "taming"
+    "stone_hit",
+    "swing",
+    "taming",
+    "wood_hit"
   ]
 }
