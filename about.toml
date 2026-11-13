@@ -1,0 +1,19 @@
+# License policy for Surviving Ornith's Windows dependency notice bundle.
+# The template includes Git-sourced UBE crates and excludes the local game package.
+accepted = [
+    "0BSD",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+targets = ["x86_64-pc-windows-msvc"]
+ignore-dev-dependencies = true
+
+[private]
+ignore = true

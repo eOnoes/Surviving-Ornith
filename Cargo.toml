@@ -1,0 +1,21 @@
+[package]
+name = "surviving-ornith"
+description = "A compact original survival game built with the Unbiased Bob Engine"
+version = "0.1.0"
+license = "MIT"
+edition = "2024"
+rust-version = "1.99.1"
+
+[workspace]
+
+[lib]
+name = "surviving_ornith"
+path = "src/lib.rs"
+
+[[bin]]
+name = "surviving-ornith"
+path = "src/main.rs"
+
+[dependencies]
+engine = { git = "https://github.com/eOnoes/UBE.git", package = "engine", rev = "26b5af78c3c2aee8b36a0e528c064a972bdebadc" }
+tracing-subscriber = { version = "0.3", features = ["fmt"] }
